@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BearNotes 考題資料庫設計說明</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #faf7f2;
+    --card: #ffffff;
+    --brown: #8b5e3c;
+    --brown-dark: #6b4423;
+    --brown-light: #c49a6c;
+    --brown-pale: #f3ebe0;
+    --brown-pale2: #ede0d0;
+    --green: #4a7c59;
+    --green-pale: #eaf4ee;
+    --blue: #3a6fa8;
+    --blue-pale: #e8f0fb;
+    --orange: #c97d30;
+    --orange-pale: #fef3e2;
+    --red: #b84c4c;
+    --red-pale: #fdf0f0;
+    --text: #2d1f0e;
+    --text-muted: #7a6552;
+    --border: #e8d9c6;
+    --radius: 12px;
+    --shadow: 0 2px 12px rgba(139,94,60,0.10);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── Header ─────────────────────────────────── */
+  .header {
+    background: linear-gradient(135deg, var(--brown-dark) 0%, var(--brown) 100%);
+    color: #fff;
+    padding: 36px 40px 28px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .logo {
+    width: 52px; height: 52px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; font-weight: 800; color: #fff;
+    letter-spacing: -1px; flex-shrink: 0;
+  }
+  .header-text h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.3px; }
+  .header-text p { font-size: 13px; opacity: 0.75; margin-top: 4px; }
+
+  /* ── Tab Nav ─────────────────────────────────── */
+  .tab-nav {
+    background: var(--card);
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    overflow-x: auto;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .tab-btn {
+    padding: 14px 20px;
+    border: none; background: none;
+    font-size: 13px; font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { color: var(--brown); background: var(--brown-pale); }
+  .tab-btn.active { color: var(--brown); border-bottom-color: var(--brown); }
+
+  /* ── Main Container ─────────────────────────── */
+  .main { max-width: 960px; margin: 0 auto; padding: 32px 20px 60px; }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* ── Section Title ─────────────────────────── */
+  .section-title {
+    font-size: 20px; font-weight: 700;
+    color: var(--brown-dark);
+    margin-bottom: 6px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--brown-pale2);
+  }
+  .section-desc {
+    color: var(--text-muted);
+    font-size: 13.5px;
+    margin-bottom: 28px;
+    line-height: 1.6;
+  }
+
+  /* ── Card ───────────────────────────────────── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+  .card-title {
+    font-size: 15px; font-weight: 700;
+    color: var(--brown);
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title .icon {
+    width: 28px; height: 28px;
+    background: var(--brown-pale);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  /* ── Pipeline Flow ──────────────────────────── */
+  .pipeline {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    flex-wrap: wrap;
+    margin: 24px 0;
+  }
+  .pipe-node {
+    flex: 1;
+    min-width: 130px;
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 14px;
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+    text-align: center;
+  }
+  .pipe-node:hover, .pipe-node.active {
+    border-color: var(--brown);
+    background: var(--brown-pale);
+    box-shadow: 0 4px 16px rgba(139,94,60,0.18);
+    transform: translateY(-2px);
+  }
+  .pipe-node .node-icon { font-size: 26px; margin-bottom: 6px; }
+  .pipe-node .node-label { font-size: 12px; font-weight: 700; color: var(--brown-dark); }
+  .pipe-node .node-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+  .pipe-arrow {
+    display: flex; align-items: center;
+    padding: 0 6px; color: var(--brown-light);
+    font-size: 20px; flex-shrink: 0;
+    align-self: center;
+  }
+  .pipe-detail {
+    background: var(--brown-pale);
+    border: 1.5px solid var(--brown-light);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-top: 16px;
+    display: none;
+    animation: fadeIn 0.2s;
+  }
+  .pipe-detail.show { display: block; }
+  .pipe-detail h4 { font-size: 14px; font-weight: 700; color: var(--brown-dark); margin-bottom: 8px; }
+  .pipe-detail p, .pipe-detail li { font-size: 13px; color: var(--text); line-height: 1.7; }
+  .pipe-detail ul { padding-left: 18px; }
+  .pipe-detail code {
+    background: rgba(139,94,60,0.12);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 12px;
+    font-family: "SF Mono", Menlo, monospace;
+    color: var(--brown-dark);
+  }
+
+  /* ── Field Table ────────────────────────────── */
+  .field-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .field-table th {
+    background: var(--brown-pale2);
+    color: var(--brown-dark);
+    font-size: 12px;
+    font-weight: 700;
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 2px solid var(--border);
+  }
+  .field-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    transition: background 0.15s;
+  }
+  .field-table tr:last-child td { border-bottom: none; }
+  .field-table tr:hover td { background: var(--brown-pale); }
+  .field-table tr.highlight td { background: var(--orange-pale); }
+  .field-name {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 12.5px;
+    color: var(--blue);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .field-type {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .field-example {
+    font-size: 12.5px;
+    color: var(--green);
+    font-family: "SF Mono", Menlo, monospace;
+    word-break: break-word;
+    max-width: 200px;
+  }
+  .field-desc { font-size: 13px; color: var(--text); }
+  .badge {
+    display: inline-block;
+    font-size: 10.5px; font-weight: 700;
+    padding: 2px 8px; border-radius: 20px;
+    margin-left: 6px; vertical-align: middle;
+  }
+  .badge-ai { background: var(--orange-pale); color: var(--orange); }
+  .badge-key { background: var(--blue-pale); color: var(--blue); }
+  .badge-opt { background: #f0f0f0; color: #666; }
+  .badge-security { background: var(--red-pale); color: var(--red); }
+
+  /* ── Example Question Box ───────────────────── */
+  .q-example {
+    background: linear-gradient(135deg, var(--blue-pale) 0%, #f0f5ff 100%);
+    border: 1.5px solid #b8ccef;
+    border-radius: var(--radius);
+    padding: 20px;
+    margin: 20px 0;
+  }
+  .q-example .q-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+  }
+  .q-num-badge {
+    background: var(--blue);
+    color: #fff;
+    font-size: 13px; font-weight: 700;
+    padding: 4px 12px; border-radius: 20px;
+  }
+  .q-code {
+    font-size: 12px; color: var(--text-muted);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .q-text { font-size: 14px; margin-bottom: 14px; line-height: 1.7; }
+  .q-options { display: grid; gap: 8px; }
+  .q-option {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid #d0e0f8;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  .q-option.correct { background: #e6f7ed; border-color: #7ec89e; }
+  .q-option.correct-multi { background: #fff3e0; border-color: #f0b96e; }
+  .q-letter { font-weight: 800; color: var(--blue); min-width: 18px; }
+  .q-option.correct .q-letter { color: var(--green); }
+  .q-option.correct-multi .q-letter { color: var(--orange); }
+
+  /* ── Highlight Callouts ─────────────────────── */
+  .highlight-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .highlight-cards { grid-template-columns: 1fr; } }
+  .highlight-card {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .highlight-card:hover { border-color: var(--brown); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(139,94,60,0.15); }
+  .highlight-card.expanded { border-color: var(--brown); }
+  .hc-top { display: flex; align-items: flex-start; gap: 12px; }
+  .hc-icon {
+    width: 40px; height: 40px; flex-shrink: 0;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .hc-icon.blue { background: var(--blue-pale); }
+  .hc-icon.green { background: var(--green-pale); }
+  .hc-icon.orange { background: var(--orange-pale); }
+  .hc-icon.red { background: var(--red-pale); }
+  .hc-title { font-size: 14px; font-weight: 700; color: var(--brown-dark); margin-bottom: 4px; }
+  .hc-tagline { font-size: 12px; color: var(--text-muted); }
+  .hc-detail {
+    display: none;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    font-size: 13px; color: var(--text); line-height: 1.75;
+  }
+  .hc-detail.show { display: block; animation: fadeIn 0.2s; }
+  .hc-detail code {
+    background: var(--brown-pale);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 12px;
+    font-family: "SF Mono", Menlo, monospace;
+    color: var(--brown-dark);
+  }
+  .hc-detail pre {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 12px;
+    font-family: "SF Mono", Menlo, monospace;
+    overflow-x: auto;
+    margin: 10px 0;
+    line-height: 1.6;
+  }
+  .hc-detail .why-box {
+    background: var(--green-pale);
+    border-left: 3px solid var(--green);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    margin-top: 10px;
+    font-size: 13px;
+  }
+  .hc-detail .why-box strong { color: var(--green); }
+
+  /* ── ER Diagram ─────────────────────────────── */
+  .er-diagram {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+  }
+  .er-wrap {
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+    min-width: 600px;
+    justify-content: center;
+  }
+  .er-table {
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    min-width: 150px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .er-table.main-table { border-color: var(--brown); }
+  .er-header {
+    background: var(--brown-pale2);
+    padding: 8px 14px;
+    font-size: 13px; font-weight: 800;
+    color: var(--brown-dark);
+    text-align: center;
+  }
+  .er-table.main-table .er-header { background: var(--brown); color: #fff; }
+  .er-field {
+    padding: 6px 14px;
+    font-size: 12px;
+    border-bottom: 1px solid #f0e8de;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .er-field:last-child { border-bottom: none; }
+  .er-field .fname {
+    font-family: "SF Mono", Menlo, monospace;
+    color: var(--text);
+    flex: 1;
+  }
+  .er-field .ftype { font-size: 10.5px; color: var(--text-muted); }
+  .er-field .pk { color: var(--orange); font-size: 10px; font-weight: 800; }
+  .er-field .fk { color: var(--blue); font-size: 10px; font-weight: 800; }
+  .er-conn-area {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .er-conn {
+    background: var(--brown-pale);
+    border: 1.5px solid var(--brown-light);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 11px; font-weight: 700;
+    color: var(--brown-dark);
+    text-align: center;
+    white-space: nowrap;
+  }
+  .er-conn .rel { font-size: 10px; color: var(--text-muted); display: block; }
+  .er-conn.cascade { border-color: var(--red); background: var(--red-pale); color: var(--red); }
+  .er-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .er-line { height: 2px; background: var(--border); flex: 1; min-width: 20px; }
+  .er-line.cascade { background: var(--red); opacity: 0.5; }
+
+  /* ── Steps ──────────────────────────────────── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step {
+    display: flex; gap: 16px;
+    position: relative;
+  }
+  .step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 19px; top: 44px;
+    width: 2px;
+    bottom: 0;
+    background: var(--border);
+  }
+  .step-num {
+    width: 38px; height: 38px;
+    background: var(--brown);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800;
+    flex-shrink: 0;
+    position: relative; z-index: 1;
+    margin-top: 6px;
+  }
+  .step-body { flex: 1; padding-bottom: 28px; }
+  .step-title { font-size: 15px; font-weight: 700; color: var(--brown-dark); margin-bottom: 6px; }
+  .step-desc { font-size: 13.5px; color: var(--text); line-height: 1.7; }
+  .step-cmd {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 12px;
+    font-family: "SF Mono", Menlo, monospace;
+    overflow-x: auto;
+    margin-top: 10px;
+    line-height: 1.6;
+  }
+  .step-note {
+    background: var(--orange-pale);
+    border-left: 3px solid var(--orange);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    margin-top: 10px;
+    font-size: 12.5px; color: var(--text);
+  }
+
+  /* ── Advanced Features ──────────────────────── */
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 640px) { .feature-grid { grid-template-columns: 1fr; } }
+  .feature-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    transition: box-shadow 0.2s;
+  }
+  .feature-card:hover { box-shadow: 0 6px 20px rgba(139,94,60,0.12); }
+  .feature-card .fc-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .feature-card .fc-icon {
+    width: 34px; height: 34px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .feature-card .fc-title { font-size: 14px; font-weight: 700; color: var(--brown-dark); }
+  .feature-card .fc-desc { font-size: 13px; color: var(--text); line-height: 1.65; }
+  .feature-card .fc-fields {
+    margin-top: 10px;
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .field-chip {
+    background: var(--blue-pale);
+    color: var(--blue);
+    border-radius: 20px;
+    font-size: 11px; font-weight: 700;
+    padding: 2px 10px;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+
+  /* ── Code Decoder Demo ──────────────────────── */
+  .decoder {
+    background: var(--card);
+    border: 2px solid var(--brown-light);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .decoder h3 { font-size: 16px; font-weight: 700; color: var(--brown-dark); margin-bottom: 16px; }
+  .decoder-input-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .decoder-input {
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-size: 15px;
+    font-family: "SF Mono", Menlo, monospace;
+    color: var(--text);
+    background: var(--bg);
+    outline: none;
+    width: 180px;
+    transition: border-color 0.2s;
+  }
+  .decoder-input:focus { border-color: var(--brown); }
+  .decode-btn {
+    background: var(--brown);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 20px;
+    font-size: 14px; font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .decode-btn:hover { background: var(--brown-dark); }
+  .decode-result { display: none; }
+  .decode-result.show { display: block; animation: fadeIn 0.3s; }
+  .decode-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    margin-top: 4px;
+  }
+  .decode-field {
+    background: var(--brown-pale);
+    border: 1px solid var(--brown-pale2);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .decode-field .df-label { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; }
+  .decode-field .df-value {
+    font-size: 16px; font-weight: 800; color: var(--brown-dark);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .decode-sql {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 12px;
+    font-family: "SF Mono", Menlo, monospace;
+    margin-top: 14px;
+    line-height: 1.6;
+    overflow-x: auto;
+  }
+  .decode-sql .kw { color: #cba6f7; }
+  .decode-sql .str { color: #a6e3a1; }
+  .decode-sql .num { color: #fab387; }
+  .decode-sql .field { color: #89b4fa; }
+  .decode-error {
+    background: var(--red-pale);
+    border: 1px solid #f0b0b0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--red);
+    font-size: 13.5px;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* misc */
+  hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+  .info-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 10px; font-size: 13.5px; }
+  .info-row .info-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  strong { color: var(--brown-dark); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">B</div>
+  <div class="header-text">
+    <h1>考題資料庫設計說明</h1>
+    <p>BearNotes 醫師國考題庫 — 給產品負責人的技術白話文 · 2026-06-13</p>
+  </div>
+</div>
+
+<nav class="tab-nav">
+  <button class="tab-btn active" onclick="showTab('flow')">① 總覽流程圖</button>
+  <button class="tab-btn" onclick="showTab('fields')">② Question 欄位解說</button>
+  <button class="tab-btn" onclick="showTab('design')">③ 關鍵設計亮點</button>
+  <button class="tab-btn" onclick="showTab('er')">④ 四表關聯圖</button>
+  <button class="tab-btn" onclick="showTab('import')">⑤ 匯入新題目</button>
+  <button class="tab-btn" onclick="showTab('advanced')">⑥ 未來進階功能</button>
+</nav>
+
+<div class="main">
+
+  <!-- ══ ① 總覽流程圖 ══════════════════════════════════════════ -->
+  <section id="flow" class="section active">
+    <h2 class="section-title">考題資料的完整旅程</h2>
+    <p class="section-desc">從考選部 PDF 到使用者在手機上看到題目，中間經過三個腳本和一個資料庫。點選每個節點可看詳細說明。</p>
+
+    <div class="pipeline">
+      <div class="pipe-node" onclick="toggleNode('n1',this)">
+        <div class="node-icon">📄</div>
+        <div class="node-label">考選部 PDF</div>
+        <div class="node-sub">試題 Q + 答案 A</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node" onclick="toggleNode('n2',this)">
+        <div class="node-icon">🐍</div>
+        <div class="node-label">parse-exam.py</div>
+        <div class="node-sub">PDF → JSON</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node" onclick="toggleNode('n3',this)">
+        <div class="node-icon">📦</div>
+        <div class="node-label">data/exams/*.json</div>
+        <div class="node-sub">版本控管中繼檔</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node" onclick="toggleNode('n4',this)">
+        <div class="node-icon">⚡</div>
+        <div class="node-label">import-exam.ts</div>
+        <div class="node-sub">JSON → 資料庫</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node" onclick="toggleNode('n5',this)">
+        <div class="node-icon">🤖</div>
+        <div class="node-label">tag-specialties.ts</div>
+        <div class="node-sub">AI 標記科別</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node" onclick="toggleNode('n6',this)">
+        <div class="node-icon">🐘</div>
+        <div class="node-label">PostgreSQL</div>
+        <div class="node-sub">Question 表</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node" onclick="toggleNode('n7',this)">
+        <div class="node-icon">🖥️</div>
+        <div class="node-label">Server Component</div>
+        <div class="node-sub">查詢、過濾正解</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node" onclick="toggleNode('n8',this)">
+        <div class="node-icon">📱</div>
+        <div class="node-label">前端題卡</div>
+        <div class="node-sub">使用者看到</div>
+      </div>
+    </div>
+
+    <div class="pipe-detail" id="n1">
+      <h4>考選部 PDF：試題 + 答案兩份</h4>
+      <ul>
+        <li>每梯次 4 份卷（醫學三、四、五、六），每卷各 80 題</li>
+        <li>試題 PDF（Q，約 1MB）：題文 + 選項 A-E</li>
+        <li>答案 PDF（A，約 50KB）：含「備註」欄列出更正題與送分說明</li>
+        <li>每年考後可從考選部網站下載</li>
+      </ul>
+    </div>
+
+    <div class="pipe-detail" id="n2">
+      <h4>parse-exam.py：從 PDF 提取結構化資料</h4>
+      <ul>
+        <li>以 <code>pdfplumber</code> 讀取原始文字，過濾頁首頁尾雜訊</li>
+        <li>連號題號辨識（「3.」之後必須是「4.」），防止正文內的年份「1994.」誤觸發</li>
+        <li>選項 A→B→C→D→E 連續辨識，換行文字自動黏接</li>
+        <li>答案備註解析：「答Ａ或Ｃ者均給分」→ <code>"AC"</code>；「一律給分」→ <code>"ALL"</code></li>
+        <li>啟發式題型標記：含「如圖/下圖」→ <code>image</code>；含「病人/患者/歲」→ <code>clinical</code>；其餘 → <code>knowledge</code></li>
+        <li>解析失敗直接中止報錯（不產出半套資料），降低人工除錯成本</li>
+      </ul>
+    </div>
+
+    <div class="pipe-detail" id="n3">
+      <h4>data/exams/*.json：版本控管的權威來源</h4>
+      <ul>
+        <li>命名規則：<code>115-1-3.json</code>（115 年第 1 次醫學三）</li>
+        <li>這份 JSON commit 進 git — 之後無論資料庫重建幾次，只要重跑 <code>import-exam.ts</code> 就能還原</li>
+        <li>若 PDF 解析後有 OCR 錯字，直接改這個 JSON 再重跑匯入，不用動資料庫</li>
+        <li>同時有 <code>115-1.tags.json</code>：AI 標記的科別對照表（可 commit 供人工審閱）</li>
+      </ul>
+    </div>
+
+    <div class="pipe-detail" id="n4">
+      <h4>import-exam.ts：冪等 upsert 入庫</h4>
+      <ul>
+        <li>以 <code>(examYear, examSession, examPaper, questionNumber)</code> 四欄位找出已存在的題目</li>
+        <li>存在 → <strong>只更新題文/選項/答案</strong>，不覆寫 specialty/topic/noteSlug（保留 AI 標記與人工修正）</li>
+        <li>不存在 → 新建，specialty 預設 <code>"未分類"</code> 等待 AI 標記</li>
+        <li>重跑完全安全，不會產生重複題目</li>
+      </ul>
+    </div>
+
+    <div class="pipe-detail" id="n5">
+      <h4>tag-specialties.ts：把科別標記寫入資料庫</h4>
+      <ul>
+        <li>讀取 <code>*.tags.json</code>（格式：卷代碼 → 題號 → 科別字串）</li>
+        <li>按 <code>(examYear, examSession, examPaper, questionNumber)</code> 找到題目，更新 <code>specialty</code></li>
+        <li>同時把 <code>aiConfidence</code> 設為 <code>0.9</code>（表示 AI 標記，Admin 後台可修改低信心題目）</li>
+        <li>多科別用逗號分隔（如 <code>"腸胃內科,感染科"</code>），第一個是主科別</li>
+      </ul>
+    </div>
+
+    <div class="pipe-detail" id="n6">
+      <h4>PostgreSQL Question 表：所有題目的儲存地</h4>
+      <ul>
+        <li>每一道題是一筆 row，以 cuid 字串為主鍵（<code>id</code>）</li>
+        <li>複合索引 <code>(examYear, examSession, examPaper)</code>：整卷查詢極快</li>
+        <li>索引 <code>(specialty, noteSlug)</code>：科別篩選 + 筆記連動查詢</li>
+        <li><code>correctAnswer</code> 永遠在 DB 端，前端直接查詢的路徑<strong>不包含</strong>這個欄位（見下個節點）</li>
+      </ul>
+    </div>
+
+    <div class="pipe-detail" id="n7">
+      <h4>Server Component：兩種查詢模式</h4>
+      <ul>
+        <li><strong>瀏覽模式</strong>（<code>/practice/exam/[examId]</code>）：包含 <code>correctAnswer</code> — 直接看答案</li>
+        <li><strong>作答模式</strong>（<code>/practice/exam/[examId]/test</code>）：<strong>刻意排除 <code>correctAnswer</code></strong>，資料傳到前端時根本拿不到答案</li>
+        <li>判分發生在 <code>POST /api/practice/submit</code>：Server 端從 DB 取正解，與使用者作答比對後寫入 <code>UserAnswer</code></li>
+        <li>這確保答案不可能被有技術能力的用戶從 Network tab 直接偷看</li>
+      </ul>
+    </div>
+
+    <div class="pipe-detail" id="n8">
+      <h4>前端題卡：使用者看到的最終呈現</h4>
+      <ul>
+        <li>題號顯示格式：<code>115-1-3-1</code>（年-梯次-卷代碼-題號），由 <code>lib/quiz.ts formatQuestionCode()</code> 組合</li>
+        <li>作答信心標記：綠（有把握）/ 黃（不確定）/ 紅（用猜的）— 存在 <code>PracticeSession.state</code></li>
+        <li>每次作答動作即時存進 state → 跨裝置續答不丟失進度</li>
+        <li>附圖題（<code>questionType=image</code>）目前顯示「附圖整理中」徽章；圖片走 R2 signed URL，禁止公開</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ══ ② Question 欄位解說 ════════════════════════════════════ -->
+  <section id="fields" class="section">
+    <h2 class="section-title">Question 表：逐欄位解說</h2>
+    <p class="section-desc">這張表是整個題庫系統的核心。以下用 115 年第 1 次醫學三第 1 題（衰弱量表題）做完整示範。</p>
+
+    <div class="q-example">
+      <div class="q-header">
+        <span class="q-num-badge">題目 1</span>
+        <span class="q-code">編號：115-1-3-1 · 更正題（A 或 C 均給分）</span>
+      </div>
+      <div class="q-text">有關衰弱（frailty）的量表或測量工具，下列何者<strong>錯誤</strong>？</div>
+      <div class="q-options">
+        <div class="q-option correct-multi"><span class="q-letter">A</span><span>Linda Fried Physical Frailty Index，≧1分即為衰弱</span></div>
+        <div class="q-option"><span class="q-letter">B</span><span>Kenneth Rockwood Cumulative Deficit Frailty Index要評估許多面向，分數算法是（有缺損面向數／評估面向總數）</span></div>
+        <div class="q-option correct-multi"><span class="q-letter">C</span><span>Venerable Elder Survey 13工具，≧3分即為衰弱</span></div>
+        <div class="q-option"><span class="q-letter">D</span><span>Strawbridge等人1994年設計的Frailty Measure，problem/difficulties in≧2 domains即為衰弱</span></div>
+      </div>
+      <p style="margin-top:12px;font-size:12px;color:var(--text-muted);">🟠 正解：A 或 C 均可給分（更正題，correctAnswer = "AC"）</p>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table class="field-table">
+        <thead>
+          <tr>
+            <th>欄位名</th>
+            <th>型別</th>
+            <th>本題範例值</th>
+            <th>用途說明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="field-name">id</span><span class="badge badge-key">PK</span></td>
+            <td><span class="field-type">String (cuid)</span></td>
+            <td><span class="field-example">"cm1ab2cd3..."</span></td>
+            <td><span class="field-desc">系統主鍵。其他表（UserAnswer、QuestionBookmark）用這個 id 來「指向」這道題</span></td>
+          </tr>
+          <tr>
+            <td><span class="field-name">examYear</span></td>
+            <td><span class="field-type">Int</span></td>
+            <td><span class="field-example">115</span></td>
+            <td><span class="field-desc">民國年份。題號顯示格式 <strong>115</strong>-1-3-1 的第一段</span></td>
+          </tr>
+          <tr>
+            <td><span class="field-name">examSession</span></td>
+            <td><span class="field-type">Int</span></td>
+            <td><span class="field-example">1</span></td>
+            <td><span class="field-desc">第幾次（1 或 2）。同年可能有兩次考試。題號顯示格式 115-<strong>1</strong>-3-1 的第二段</span></td>
+          </tr>
+          <tr>
+            <td><span class="field-name">examPaper</span></td>
+            <td><span class="field-type">String</span></td>
+            <td><span class="field-example">"醫學三"</span></td>
+            <td><span class="field-desc">試卷名稱，固定 4 種：醫學三/四/五/六。題號顯示時轉成數字代碼：115-1-<strong>3</strong>-1。對應的科別範圍是固定的（醫學三 = 內科 + 家醫）</span></td>
+          </tr>
+          <tr>
+            <td><span class="field-name">questionNumber</span></td>
+            <td><span class="field-type">Int</span></td>
+            <td><span class="field-example">1</span></td>
+            <td><span class="field-desc">該卷第幾題（1~80）。題號顯示格式 115-1-3-<strong>1</strong> 的第四段</span></td>
+          </tr>
+          <tr>
+            <td><span class="field-name">questionText</span></td>
+            <td><span class="field-type">Text</span></td>
+            <td><span class="field-example">"有關衰弱（frailty）的量表或測量工具..."</span></td>
+            <td><span class="field-desc">題目正文。<code>@db.Text</code> 表示 PostgreSQL 用 TEXT 型別，無長度上限（有些臨床案例題非常長）</span></td>
+          </tr>
+          <tr>
+            <td><span class="field-name">optionA</span></td>
+            <td><span class="field-type">String</span></td>
+            <td><span class="field-example">"Linda Fried Physical Frailty Index..."</span></td>
+            <td><span class="field-desc">選項 A 的文字。四個選項永遠存在</span></td>
+          </tr>
+          <tr>
+            <td><span class="field-name">optionB / C / D</span></td>
+            <td><span class="field-type">String</span></td>
+            <td><span class="field-example">"Kenneth Rockwood..."</span></td>
+            <td><span class="field-desc">同上，選項 B、C、D</span></td>
+          </tr>
+          <tr>
+            <td><span class="field-name">optionE</span><span class="badge badge-opt">可空</span></td>
+            <td><span class="field-type">String?</span></td>
+            <td><span class="field-example">null</span></td>
+            <td><span class="field-desc">第五個選項（部分題型才有）。本題為 null，前端根據是否 null 決定顯示幾個選項</span></td>
+          </tr>
+          <tr class="highlight">
+            <td><span class="field-name">correctAnswer</span><span class="badge badge-security">安全關鍵</span></td>
+            <td><span class="field-type">String</span></td>
+            <td><span class="field-example">"AC"</span></td>
+            <td><span class="field-desc">正確答案。<strong>三種格式</strong>：<br>
+              • 單字母 <code>"B"</code> — 一般題<br>
+              • 多字母 <code>"AC"</code> — 更正題（選 A 或 C 都給分）<br>
+              • <code>"ALL"</code> — 送分題（選任何答案都給分）<br>
+              <strong>作答模式查詢刻意排除此欄位</strong>，判分一律 Server 端完成
+            </span></td>
+          </tr>
+          <tr>
+            <td><span class="field-name">questionType</span></td>
+            <td><span class="field-type">String</span></td>
+            <td><span class="field-example">"knowledge"</span></td>
+            <td><span class="field-desc">題型：<code>knowledge</code>（純知識）/ <code>clinical</code>（有病人情境）/ <code>image</code>（附圖題）。由解析器啟發式判斷，影響前端顯示方式</span></td>
+          </tr>
+          <tr>
+            <td><span class="field-name">specialty</span><span class="badge badge-ai">AI 標記</span></td>
+            <td><span class="field-type">String</span></td>
+            <td><span class="field-example">"家庭醫學科"</span></td>
+            <td><span class="field-desc">科別。由 AI 標記，可由 Admin 手動修正。多科別用逗號：<code>"腸胃內科,感染科"</code>，第一個是主科別（統計/雷達圖用）</span></td>
+          </tr>
+          <tr>
+            <td><span class="field-name">topic</span><span class="badge badge-ai">AI 標記</span></td>
+            <td><span class="field-type">String</span></td>
+            <td><span class="field-example">"衰弱症"</span></td>
+            <td><span class="field-desc">章節/主題（比科別更細）。由 AI 標記，用於精準連結到對應筆記段落</span></td>
+          </tr>
+          <tr>
+            <td><span class="field-name">imageUrl</span><span class="badge badge-opt">可空</span></td>
+            <td><span class="field-type">String?</span></td>
+            <td><span class="field-example">null</span></td>
+            <td><span class="field-desc">附圖的 R2 Storage key（非完整 URL）。前台一律透過 signed URL 提供（1小時有效），禁止公開 bucket。目前附圖題先存文字，imageUrl 為 null</span></td>
+          </tr>
+          <tr>
+            <td><span class="field-name">noteSlug</span><span class="badge badge-opt">可空</span></td>
+            <td><span class="field-type">String?</span></td>
+            <td><span class="field-example">"family-medicine-frailty"</span></td>
+            <td><span class="field-desc">連結到哪篇筆記的 slug。建立後可在筆記頁底部看到相關考題，也可從考題跳到對應筆記章節</span></td>
+          </tr>
+          <tr>
+            <td><span class="field-name">aiConfidence</span><span class="badge badge-ai">AI 標記</span><span class="badge badge-opt">可空</span></td>
+            <td><span class="field-type">Float?</span></td>
+            <td><span class="field-example">0.9</span></td>
+            <td><span class="field-desc">AI 標記的信心分數（0~1）。<code>tag-specialties.ts</code> 套用時固定設 0.9。Admin 後台可以只看低信心（&lt;0.8）題目做人工確認</span></td>
+          </tr>
+          <tr>
+            <td><span class="field-name">createdAt</span></td>
+            <td><span class="field-type">DateTime</span></td>
+            <td><span class="field-example">2026-06-12T10:30:00Z</span></td>
+            <td><span class="field-desc">題目匯入時間。自動填入，不需手動設定</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><div class="icon">📊</div> DB 索引設計說明</div>
+      <div class="info-row"><div class="info-icon">🔍</div><div><strong>索引一：<code>(examYear, examSession, examPaper)</code></strong> — 整卷查詢的主要路徑。前端作答頁一次撈整卷 80 題，這個索引讓查詢從全表掃描變成精確定位</div></div>
+      <div class="info-row"><div class="info-icon">🔍</div><div><strong>索引二：<code>(specialty, noteSlug)</code></strong> — 篩選特定科別、或找某篇筆記的相關考題時使用。兩個欄位合一個索引，節省 DB 資源</div></div>
+    </div>
+  </section>
+
+  <!-- ══ ③ 關鍵設計亮點 ════════════════════════════════════════ -->
+  <section id="design" class="section">
+    <h2 class="section-title">四個關鍵設計決策</h2>
+    <p class="section-desc">這些不是隨便這樣做的——每個設計背後都有明確的理由。點開每張卡看完整說明。</p>
+
+    <div class="decoder">
+      <h3>互動 Demo：題目編號解碼器</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">輸入任意題號，看看它對應到資料庫的哪些欄位</p>
+      <div class="decoder-input-row">
+        <input class="decoder-input" id="codeInput" type="text" value="115-1-3-1" placeholder="如 115-1-4-30" maxlength="12">
+        <button class="decode-btn" onclick="decodeQuestion()">解碼</button>
+        <span style="font-size:12px;color:var(--text-muted);">格式：年-梯次-卷(3~6)-題號</span>
+      </div>
+      <div class="decode-result" id="decodeResult"></div>
+    </div>
+
+    <div class="highlight-cards">
+      <div class="highlight-card" onclick="toggleCard(this)">
+        <div class="hc-top">
+          <div class="hc-icon blue">🔢</div>
+          <div>
+            <div class="hc-title">題號是「算出來」的，不另存</div>
+            <div class="hc-tagline">115-1-3-1 由四個欄位組合產生</div>
+          </div>
+        </div>
+        <div class="hc-detail">
+          <p>題目顯示給使用者看的編號 <code>115-1-3-1</code>，<strong>資料庫裡沒有這個欄位</strong>。它是由四個獨立欄位即時組合的：</p>
+          <pre>examYear=115, examSession=1, examPaper="醫學三"(→代碼3), questionNumber=1
+lib/quiz.ts → formatQuestionCode() → "115-1-3-1"</pre>
+          <div class="why-box"><strong>為什麼這樣做？</strong> 如果另存一個 <code>code</code> 字串欄位，每次搜尋/排序都要解析字串，且必須保持同步。四個獨立的數字欄位更容易建索引、排序、範圍查詢（例如「撈出 115 年全部題目」只需 <code>WHERE examYear=115</code>）。</div>
+        </div>
+      </div>
+
+      <div class="highlight-card" onclick="toggleCard(this)">
+        <div class="hc-top">
+          <div class="hc-icon orange">⚖️</div>
+          <div>
+            <div class="hc-title">更正題 "AC"、送分 "ALL" 的判分邏輯</div>
+            <div class="hc-tagline">考選部備註直接編碼進正解欄</div>
+          </div>
+        </div>
+        <div class="hc-detail">
+          <p>考選部每梯次都會公布更正答案，例如「第1題答A或C者均給分」。我們把這個資訊直接存在 <code>correctAnswer</code> 欄：</p>
+          <pre>// lib/quiz.ts
+function isAnswerCorrect(correctAnswer, userAnswer) {
+  if (!userAnswer) return false;
+  if (correctAnswer === "ALL") return true;        // 送分題
+  return correctAnswer.includes(userAnswer);       // "AC".includes("A") = true
+}</pre>
+          <div class="why-box"><strong>為什麼這樣做？</strong> 不需要另設 <code>isAmended</code> 欄位或 answers 陣列，一個字串就能表達所有情況。<code>correctAnswer.includes(userAnswer)</code> 這行程式碼對單答案（<code>"B".includes("B")</code>）和多答案（<code>"AC".includes("A")</code>）都能正確運作。</div>
+        </div>
+      </div>
+
+      <div class="highlight-card" onclick="toggleCard(this)">
+        <div class="hc-top">
+          <div class="hc-icon red">🔒</div>
+          <div>
+            <div class="hc-title">作答模式排除 correctAnswer</div>
+            <div class="hc-tagline">答案永遠只在 Server 端</div>
+          </div>
+        </div>
+        <div class="hc-detail">
+          <p>兩個頁面對同一張資料表的查詢<strong>刻意不同</strong>：</p>
+          <pre>// 作答模式（/test 頁）— 沒有 correctAnswer！
+select: {
+  id, questionNumber, questionText,
+  optionA, optionB, optionC, optionD, optionE,
+  questionType   // 就這樣，沒有正解
+}
+
+// 瀏覽模式（/exam 頁）— 包含正解
+select: { ...上面全部..., correctAnswer }</pre>
+          <p style="margin-top:10px;">判分在 <code>POST /api/practice/submit</code>：Server 端從 DB 取正解，再和使用者作答比對。</p>
+          <div class="why-box"><strong>為什麼這樣做？</strong> 有技術能力的用戶可能用 Chrome DevTools → Network tab 直接看 API 回應。只要作答時的回應根本不包含 <code>correctAnswer</code>，就算看到也沒用。這是「設計上不可能洩漏」，比「加密」更可靠。</div>
+        </div>
+      </div>
+
+      <div class="highlight-card" onclick="toggleCard(this)">
+        <div class="hc-top">
+          <div class="hc-icon green">🔗</div>
+          <div>
+            <div class="hc-title">UserAnswer 綁 PracticeSession（Cascade 刪除）</div>
+            <div class="hc-tagline">刪紀錄 → 錯題和雷達圖同步消失</div>
+          </div>
+        </div>
+        <div class="hc-detail">
+          <p>每一筆作答（<code>UserAnswer</code>）都有一個 <code>practiceSessionId</code>，指向它所屬的測驗紀錄（<code>PracticeSession</code>）。schema 上設了 <code>onDelete: Cascade</code>：</p>
+          <pre>// 刪除 PracticeSession 時，
+// 屬於這份測驗的 UserAnswer 全部自動刪除
+
+// quiz-stats.ts 的錯題/雷達邏輯：
+// 只計入 practiceSessionId 非空的作答
+where: { userId, practiceSessionId: { not: null } }</pre>
+          <p style="margin-top:10px;">這樣設計讓「練習紀錄」真的有意義——使用者可以刪掉某次測驗，統計就自動重算。</p>
+          <div class="why-box"><strong>為什麼這樣做？</strong> 如果作答和測驗是獨立的（沒有 cascade），刪掉一次糟糕的練習後，那些答錯的記錄還會殘留在錯題本裡，造成資料不一致。Cascade 讓整個生命週期連動，永遠不會出現「孤兒作答紀錄」。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ④ 四表關聯圖 ═══════════════════════════════════════════ -->
+  <section id="er" class="section">
+    <h2 class="section-title">四張表的關聯圖（ER Diagram）</h2>
+    <p class="section-desc">題庫系統的四個主要 Model，以及它們之間的連結關係。紅色連線代表 Cascade（主表刪除時從表自動跟著刪除）。</p>
+
+    <div class="er-diagram">
+      <!-- Row 1: PracticeSession — UserAnswer — Question -->
+      <div class="er-wrap" style="margin-bottom:30px;">
+
+        <div class="er-table">
+          <div class="er-header">PracticeSession</div>
+          <div class="er-field"><span class="pk">PK</span><span class="fname">id</span><span class="ftype">cuid</span></div>
+          <div class="er-field"><span class="fk">FK</span><span class="fname">userId</span><span class="ftype">→ User</span></div>
+          <div class="er-field"><span class="fname">mode</span><span class="ftype">exam / random...</span></div>
+          <div class="er-field"><span class="fname">filters</span><span class="ftype">Json</span></div>
+          <div class="er-field"><span class="fname">state</span><span class="ftype">Json? (續答狀態)</span></div>
+          <div class="er-field"><span class="fname">totalCount</span><span class="ftype">Int</span></div>
+          <div class="er-field"><span class="fname">correctCount</span><span class="ftype">Int?</span></div>
+          <div class="er-field"><span class="fname">completedAt</span><span class="ftype">DateTime?</span></div>
+          <div class="er-field"><span class="fname">createdAt</span><span class="ftype">DateTime</span></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;flex-shrink:0;">
+          <div style="font-size:11px;font-weight:700;color:var(--red);white-space:nowrap;">1 : N</div>
+          <div style="font-size:20px;color:var(--red);">→</div>
+          <div class="er-conn cascade">onDelete: Cascade<span class="rel">刪測驗→作答全刪</span></div>
+        </div>
+
+        <div class="er-table main-table">
+          <div class="er-header">UserAnswer</div>
+          <div class="er-field"><span class="pk">PK</span><span class="fname">id</span><span class="ftype">cuid</span></div>
+          <div class="er-field"><span class="fk">FK</span><span class="fname">userId</span><span class="ftype">→ User</span></div>
+          <div class="er-field"><span class="fk">FK</span><span class="fname">questionId</span><span class="ftype">→ Question</span></div>
+          <div class="er-field"><span class="fk">FK</span><span class="fname">practiceSessionId</span><span class="ftype">→ PracticeSession?</span></div>
+          <div class="er-field"><span class="fname">userAnswer</span><span class="ftype">A-E</span></div>
+          <div class="er-field"><span class="fname">isCorrect</span><span class="ftype">Boolean</span></div>
+          <div class="er-field"><span class="fname">timeSpent</span><span class="ftype">Int? (秒)</span></div>
+          <div class="er-field"><span class="fname">answeredAt</span><span class="ftype">DateTime</span></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;flex-shrink:0;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);white-space:nowrap;">N : 1</div>
+          <div style="font-size:20px;color:var(--border);">→</div>
+          <div class="er-conn">查題目內容<span class="rel">題目刪除不影響作答</span></div>
+        </div>
+
+        <div class="er-table">
+          <div class="er-header">Question</div>
+          <div class="er-field"><span class="pk">PK</span><span class="fname">id</span><span class="ftype">cuid</span></div>
+          <div class="er-field"><span class="fname">examYear</span><span class="ftype">Int (115)</span></div>
+          <div class="er-field"><span class="fname">examSession</span><span class="ftype">Int (1|2)</span></div>
+          <div class="er-field"><span class="fname">examPaper</span><span class="ftype">醫學三~六</span></div>
+          <div class="er-field"><span class="fname">questionNumber</span><span class="ftype">Int</span></div>
+          <div class="er-field"><span class="fname">questionText</span><span class="ftype">Text</span></div>
+          <div class="er-field"><span class="fname">optionA~E</span><span class="ftype">String(E可空)</span></div>
+          <div class="er-field"><span class="fname">correctAnswer</span><span class="ftype">B | AC | ALL</span></div>
+          <div class="er-field"><span class="fname">specialty</span><span class="ftype">AI標記</span></div>
+          <div class="er-field"><span class="fname">topic</span><span class="ftype">AI標記</span></div>
+          <div class="er-field"><span class="fname">questionType</span><span class="ftype">knowledge|clinical|image</span></div>
+          <div class="er-field"><span class="fname">noteSlug</span><span class="ftype">→ Note (可空)</span></div>
+          <div class="er-field"><span class="fname">imageUrl</span><span class="ftype">R2 key (可空)</span></div>
+          <div class="er-field"><span class="fname">aiConfidence</span><span class="ftype">Float? (0~1)</span></div>
+        </div>
+
+      </div>
+
+      <!-- Row 2: QuestionBookmark -->
+      <div style="display:flex;justify-content:center;">
+        <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:center;">
+
+          <div class="er-table">
+            <div class="er-header">QuestionBookmark</div>
+            <div class="er-field"><span class="pk">PK</span><span class="fname">id</span><span class="ftype">cuid</span></div>
+            <div class="er-field"><span class="fk">FK</span><span class="fname">userId</span><span class="ftype">→ User</span></div>
+            <div class="er-field"><span class="fk">FK</span><span class="fname">questionId</span><span class="ftype">→ Question</span></div>
+            <div class="er-field"><span class="fname">createdAt</span><span class="ftype">DateTime</span></div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div style="font-size:11px;font-weight:700;color:var(--red);">onDelete: Cascade</div>
+            <div style="font-size:20px;color:var(--red);">↑</div>
+            <div class="er-conn cascade" style="font-size:11px;">題目刪除→書籤消失</div>
+          </div>
+
+          <div style="text-align:center;font-size:12px;color:var(--text-muted);max-width:200px;">
+            <div style="font-size:24px;margin-bottom:6px;">↑</div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);">N : 1（Question 與 QuestionBookmark）</div>
+            <div style="margin-top:4px;">一道題可被多人收藏，每人每題只能收藏一次（unique 約束）</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+      <div class="card-title"><div class="icon">📝</div> 設計重點整理</div>
+      <div class="info-row"><div class="info-icon">🔴</div><div><strong>Cascade（紅色）</strong>：PracticeSession 刪除 → UserAnswer 連帶刪除。QuestionBookmark 隨 Question 刪除。這讓資料庫永遠不會有「孤兒紀錄」</div></div>
+      <div class="info-row"><div class="info-icon">⚪</div><div><strong>無 Cascade（灰色）</strong>：UserAnswer 關聯 Question 是普通外鍵。就算有天要刪掉某道題，作答紀錄不會被連帶刪除（避免誤刪用戶歷史）</div></div>
+      <div class="info-row"><div class="info-icon">🔑</div><div><strong>unique 約束</strong>：<code>(userId, questionId)</code> 在 QuestionBookmark 上有 unique，確保同一道題每人只能收藏一次，不需要程式碼額外判斷</div></div>
+      <div class="info-row"><div class="info-icon">🔗</div><div><strong>noteSlug</strong>：Question 有一個可空的外鍵指向 Note 表（via slug），建立考題與筆記的雙向連結。這個欄位是「打通題庫與筆記」的核心</div></div>
+    </div>
+  </section>
+
+  <!-- ══ ⑤ 匯入新題目 ════════════════════════════════════════ -->
+  <section id="import" class="section">
+    <h2 class="section-title">每年如何匯入新題目</h2>
+    <p class="section-desc">全程四個步驟，完全冪等（重跑不會產生重複資料）。<code>data/exams/</code> 是版本控管的權威來源，資料庫只是查詢的執行時副本。</p>
+
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">解析 PDF → JSON（每卷執行一次，共 4 次）</div>
+          <div class="step-desc">從考選部下載試題 PDF（Q）與答案 PDF（A），每份卷分別執行解析腳本。</div>
+          <div class="step-cmd">python3 scripts/parse-exam.py \
+  --q "116-1-醫學三-Q.pdf" --a "116-1-醫學三-A.pdf" \
+  --year 116 --session 1 --paper 醫學三 \
+  --out data/exams/116-1-3.json
+
+# 其他三份：
+# --paper 醫學四 --out data/exams/116-1-4.json
+# --paper 醫學五 --out data/exams/116-1-5.json
+# --paper 醫學六 --out data/exams/116-1-6.json</div>
+          <div class="step-note">腳本會自動處理：換行黏接、全形轉半形、更正題（"AC"/"ALL"）。解析失敗直接報錯中止，不產出半套 JSON。</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">匯入資料庫（一次執行，可帶多個 JSON）</div>
+          <div class="step-desc">把四份 JSON 一次匯入資料庫。以 <code>(examYear, examSession, examPaper, questionNumber)</code> 做 upsert，重跑完全安全。注意：不會覆寫 specialty/topic/noteSlug（保留 AI 標記與人工修正）。</div>
+          <div class="step-cmd">npx tsx --env-file=.env.local scripts/import-exam.ts \
+  data/exams/116-1-3.json \
+  data/exams/116-1-4.json \
+  data/exams/116-1-5.json \
+  data/exams/116-1-6.json
+
+# 輸出示例：
+# ✓ 116-1 醫學三：新增 80、更新 0
+# ✓ 116-1 醫學四：新增 80、更新 0</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">AI 標記科別（產出標記 JSON → 套用到 DB）</div>
+          <div class="step-desc">先把題幹印出來供 AI 閱讀，再把 AI 的標記結果寫成 <code>*.tags.json</code>，最後用腳本套用到資料庫。</div>
+          <div class="step-cmd"># 印出所有題幹供 AI 標記：
+python3 -c "import json; [print(q['questionNumber'],'|',q['questionText'][:90]) \
+  for p in [3,4,5,6] \
+  for q in json.load(open(f'data/exams/116-1-{p}.json'))['questions']]"
+
+# （把輸出貼給 AI，請它產出 116-1.tags.json）
+
+# 標記 JSON 完成後套用：
+npx tsx --env-file=.env.local scripts/tag-specialties.ts \
+  --tags data/exams/116-1.tags.json --year 116 --session 1</div>
+          <div class="step-note">
+            <strong>各卷科別範圍固定</strong>（考選部卷頭即標明）：<br>
+            醫學三 = 內科各次專科 + 家醫 + 醫倫 ／ 醫學四 = 小兒 + 神經 + 精神 + 皮膚 + 醫倫<br>
+            醫學五 = 外科各次專科 + 骨科 + 泌尿 + 醫倫 ／ 醫學六 = 婦產 + 復健 + 眼科 + 耳鼻喉 + 麻醉 + 醫倫<br>
+            AI 不需要猜測卷別，只需從固定範圍內選最合適的科別，準確率很高。
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">驗證 + 收尾</div>
+          <div class="step-desc">確認題數正確、沒有未分類題目，然後 commit 進 git。</div>
+          <div class="step-cmd"># 驗證：期望 題數=320（4卷×80）、未分類=0
+npx tsx --env-file=.env.local -e "
+import('./lib/db').then(async ({prisma})=>{
+  const y=116,s=1;
+  console.log('題數', await prisma.question.count({where:{examYear:y,examSession:s}}));
+  console.log('未分類', await prisma.question.count({where:{examYear:y,examSession:s,specialty:'未分類'}}));
+  process.exit(0)
+})"
+
+# 收尾：把 JSON commit 進 git（這是可重現匯入的權威來源）
+git add data/exams/116-1-*.json data/exams/116-1.tags.json
+git commit -m "feat: 匯入 116 年第 1 次考古題（醫學三~六，共 320 題）"</div>
+          <div class="step-note"><strong>重要原則</strong>：<code>data/exams/*.json</code> commit 進 git 後，資料庫就算清空也能一行指令還原。JSON 是「真相」，DB 是「快取」。</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══ ⑥ 未來進階功能 ═══════════════════════════════════════ -->
+  <section id="advanced" class="section">
+    <h2 class="section-title">六個可以做的進階功能</h2>
+    <p class="section-desc">以下功能都能直接從現有 schema 實作，不需要改表結構。</p>
+
+    <div class="feature-grid">
+
+      <div class="feature-card">
+        <div class="fc-head">
+          <div class="fc-icon" style="background:var(--blue-pale);">🎯</div>
+          <div class="fc-title">依科別掌握度智慧出題</div>
+        </div>
+        <div class="fc-desc">計算使用者各科答對率（<code>isCorrect</code> + <code>specialty</code>），自動把「掌握度低的科別」題目比例拉高。等於是個人化的弱點加強模式。</div>
+        <div class="fc-fields">
+          <span class="field-chip">UserAnswer.isCorrect</span>
+          <span class="field-chip">Question.specialty</span>
+          <span class="field-chip">PracticeSession.filters</span>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="fc-head">
+          <div class="fc-icon" style="background:var(--orange-pale);">👀</div>
+          <div class="fc-title">Admin 低信心題審核佇列</div>
+        </div>
+        <div class="fc-desc">Admin 後台直接撈 <code>aiConfidence &lt; 0.8</code> 的題目（或 <code>IS NULL</code> 代表尚未標記），顯示題幹讓 Admin 快速確認或修改科別，一鍵更新。</div>
+        <div class="fc-fields">
+          <span class="field-chip">Question.aiConfidence</span>
+          <span class="field-chip">Question.specialty</span>
+          <span class="field-chip">Question.topic</span>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="fc-head">
+          <div class="fc-icon" style="background:var(--green-pale);">📖</div>
+          <div class="fc-title">筆記 × 考題雙向連動</div>
+        </div>
+        <div class="fc-desc">當 <code>noteSlug</code> 有值時，讀筆記底部顯示「本章節相關考題」（最近 3 年），練習題可跳回對應筆記。這是 BearNotes 最核心的差異化功能。</div>
+        <div class="fc-fields">
+          <span class="field-chip">Question.noteSlug</span>
+          <span class="field-chip">Question.examYear</span>
+          <span class="field-chip">Note.slug</span>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="fc-head">
+          <div class="fc-icon" style="background:var(--red-pale);">📅</div>
+          <div class="fc-title">跨年度同章節出題趨勢</div>
+        </div>
+        <div class="fc-desc">把同一個 <code>noteSlug</code>（章節）在不同 <code>examYear</code> 出現的次數做成折線圖，讓學生知道哪個章節近年越考越頻繁、哪個已經很少出現。</div>
+        <div class="fc-fields">
+          <span class="field-chip">Question.noteSlug</span>
+          <span class="field-chip">Question.examYear</span>
+          <span class="field-chip">Question.examSession</span>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="fc-head">
+          <div class="fc-icon" style="background:#f3e8ff;">🔁</div>
+          <div class="fc-title">間隔複習錯題本</div>
+        </div>
+        <div class="fc-desc">以「每題最近一次作答時間」（<code>answeredAt</code>）為基準，實作 Spaced Repetition：答錯的題下次在 1 天後、3 天後、7 天後再出現，直到連續答對為止。</div>
+        <div class="fc-fields">
+          <span class="field-chip">UserAnswer.answeredAt</span>
+          <span class="field-chip">UserAnswer.isCorrect</span>
+          <span class="field-chip">UserAnswer.questionId</span>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="fc-head">
+          <div class="fc-icon" style="background:#e8f8f5;">📊</div>
+          <div class="fc-title">科別雷達圖（已實作基礎）</div>
+        </div>
+        <div class="fc-desc"><code>lib/quiz-stats.ts</code> 的 <code>computeMastery()</code> 已實作：各卷 × 各科的答對率。可再加「歷次練習的掌握度趨勢折線」，讓學生看到自己的進步曲線。</div>
+        <div class="fc-fields">
+          <span class="field-chip">UserAnswer.isCorrect</span>
+          <span class="field-chip">Question.examPaper</span>
+          <span class="field-chip">Question.specialty</span>
+          <span class="field-chip">PracticeSession.completedAt</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</div><!-- /main -->
+
+<script>
+// ── Tab 切換 ────────────────────────────────
+function showTab(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Pipeline 節點展開 ────────────────────────
+let activeNode = null;
+function toggleNode(id, el) {
+  const detail = document.getElementById(id);
+  if (activeNode && activeNode !== id) {
+    document.getElementById(activeNode).classList.remove('show');
+    document.querySelectorAll('.pipe-node').forEach(n => n.classList.remove('active'));
+  }
+  if (activeNode === id) {
+    detail.classList.remove('show');
+    el.classList.remove('active');
+    activeNode = null;
+  } else {
+    detail.classList.add('show');
+    el.classList.add('active');
+    activeNode = id;
+    detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+// ── Highlight Card 展開 ──────────────────────
+function toggleCard(el) {
+  const detail = el.querySelector('.hc-detail');
+  const isExpanded = el.classList.contains('expanded');
+  document.querySelectorAll('.highlight-card').forEach(c => {
+    c.classList.remove('expanded');
+    c.querySelector('.hc-detail').classList.remove('show');
+  });
+  if (!isExpanded) {
+    el.classList.add('expanded');
+    detail.classList.add('show');
+  }
+}
+
+// ── 題號解碼器 ──────────────────────────────
+const PAPER_BY_CODE = { '3': '醫學三', '4': '醫學四', '5': '醫學五', '6': '醫學六' };
+const PAPER_SUBJECTS = {
+  '醫學三': '內科各次專科、家庭醫學科、醫學倫理',
+  '醫學四': '小兒科、神經內科、精神科、皮膚科、醫學倫理',
+  '醫學五': '外科各次專科、骨科、泌尿科、醫學倫理',
+  '醫學六': '婦產科、復健科、眼科、耳鼻喉科、麻醉科、醫學倫理',
+};
+
+function decodeQuestion() {
+  const code = document.getElementById('codeInput').value.trim();
+  const result = document.getElementById('decodeResult');
+  const m = /^(\d{2,3})-([12])-([3-6])-(\d{1,3})$/.exec(code);
+
+  if (!m) {
+    result.innerHTML = `<div class="decode-error">格式不正確。正確格式：<strong>年-梯次-卷(3~6)-題號</strong>，例如 <strong>115-1-3-1</strong></div>`;
+    result.classList.add('show');
+    return;
+  }
+
+  const year = m[1], session = m[2], paperCode = m[3], qNum = m[4];
+  const paper = PAPER_BY_CODE[paperCode];
+  const subjects = PAPER_SUBJECTS[paper];
+  const examId = `${year}-${session}-${paperCode}`;
+
+  result.innerHTML = `
+    <div class="decode-fields">
+      <div class="decode-field"><div class="df-label">examYear</div><div class="df-value">${year}</div></div>
+      <div class="decode-field"><div class="df-label">examSession</div><div class="df-value">${session}</div></div>
+      <div class="decode-field"><div class="df-label">examPaper</div><div class="df-value">${paper}</div></div>
+      <div class="decode-field"><div class="df-label">questionNumber</div><div class="df-value">${qNum}</div></div>
+    </div>
+    <div style="margin-top:12px;font-size:12.5px;color:var(--text-muted);">
+      <strong>examId（URL 用）：</strong> <code style="background:var(--brown-pale);padding:2px 8px;border-radius:4px;font-family:monospace;color:var(--brown-dark);">${examId}</code>
+      &nbsp;&nbsp;<strong>卷別範圍：</strong>${subjects}
+    </div>
+    <div class="decode-sql">
+<span class="kw">-- 瀏覽模式查詢（含正解）</span>
+<span class="kw">SELECT</span> <span class="field">id, questionNumber, questionText, optionA, optionB, optionC, optionD, optionE, correctAnswer</span>
+<span class="kw">FROM</span> <span class="field">"Question"</span>
+<span class="kw">WHERE</span> <span class="field">examYear</span> = <span class="num">${year}</span>
+  <span class="kw">AND</span> <span class="field">examSession</span> = <span class="num">${session}</span>
+  <span class="kw">AND</span> <span class="field">examPaper</span> = <span class="str">'${paper}'</span>
+<span class="kw">ORDER BY</span> <span class="field">questionNumber</span> <span class="kw">ASC</span>;
+
+<span class="kw">-- 作答模式查詢（故意排除 correctAnswer！）</span>
+<span class="kw">SELECT</span> <span class="field">id, questionNumber, questionText, optionA, optionB, optionC, optionD, optionE</span>
+<span class="kw">FROM</span> <span class="field">"Question"</span>
+<span class="kw">WHERE</span> <span class="field">examYear</span> = <span class="num">${year}</span>
+  <span class="kw">AND</span> <span class="field">examSession</span> = <span class="num">${session}</span>
+  <span class="kw">AND</span> <span class="field">examPaper</span> = <span class="str">'${paper}'</span>
+<span class="kw">ORDER BY</span> <span class="field">questionNumber</span> <span class="kw">ASC</span>;
+    </div>
+  `;
+  result.classList.add('show');
+}
+
+// Enter 鍵觸發解碼
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('codeInput');
+  if (input) {
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') decodeQuestion(); });
+    decodeQuestion(); // 頁面載入時自動解碼示例值
+  }
+});
+</script>
+
+</body>
+</html>
